@@ -16,7 +16,7 @@
 - [x] SQLite3 table of the data
 - [x] Lookup table for users and list of items they have rated or something
 - [x] Lookup table for items and users that have rated them (i think i need this?)
-- [ ] Precomputing cosine simularities between all users and storing results somewhere
+- [x] Precomputing cosine simularities between all users and storing results somewhere
 - [ ] For items without ratings by a user, find a neighbour of similar users to this user
 - [ ] Then calculate an average score
 - [ ] Do this for all and write to a file! :) DONE!!!!
