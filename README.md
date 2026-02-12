@@ -11,12 +11,12 @@
 - Should then **PRE-COMPUTE** the cosine simularity of each user with every other user (assuming they share at least 2-3 ratings (for optimasation purposes))
 - THEN can predict everything using the lookups of the cosine simularities that are already calculated!
 
-## Task list for me to check progress!
+## Task list for me to check progress
 
-[ ] SQLite3 table of the data
-[ ] Lookup table for users and list of items they have rated or something
-[ ] Lookup table for items and users that have rated them (i think i need this?)
-[ ] Precomputing cosine simularities between all users and storing results somewhere
-[ ] For items without ratings by a user, find a neighbour of similar users to this user
-[ ] Then calculate an average score
-[ ] Do this for all and write to a file! :) DONE!!!!
+- [ ] SQLite3 table of the data
+- [ ] Lookup table for users and list of items they have rated or something
+- [ ] Lookup table for items and users that have rated them (i think i need this?)
+- [ ] Precomputing cosine simularities between all users and storing results somewhere
+- [ ] For items without ratings by a user, find a neighbour of similar users to this user
+- [ ] Then calculate an average score
+- [ ] Do this for all and write to a file! :) DONE!!!!
