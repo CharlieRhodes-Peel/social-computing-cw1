@@ -100,18 +100,32 @@ def calculateCosineSim(ratings1: dict, ratings2: dict):
     """
     # Get items that are rated by both users
     sharedItems = set(ratings1.keys()) & set(ratings2.keys())
+
+    # If none are shared then aren't similar at all
+    if len(sharedItems) < 1:
+        return 0.0
+
+    #Calculating mean
+    user1Mean = 0
+    user2Mean = 0
+    for item in sharedItems:
+        user1Mean += ratings1[item]
+        user2Mean += ratings2[item]
     
+    user1Mean = user1Mean / len(sharedItems)
+    user2Mean = user2Mean / len(sharedItems)
+
     #Top half of the equation
     topHalfSum = 0
     for item in sharedItems:
-        topHalfSum += (ratings1[item] * ratings2[item])
+        topHalfSum += ((ratings1[item] - user1Mean) * (ratings2[item] - user1Mean))
 
     #Bottom half of the equation
     bottomHalfUser1Sum = 0
     bottomHalfUser2Sum = 0
     for item in sharedItems:
-        bottomHalfUser1Sum += ratings1[item] ** 2
-        bottomHalfUser2Sum += ratings2[item] ** 2
+        bottomHalfUser1Sum += (ratings1[item] - user1Mean) ** 2
+        bottomHalfUser2Sum += (ratings2[item] - user2Mean) ** 2
 
     bottomHalfUser1Sum = math.sqrt(bottomHalfUser1Sum)
     bottomHalfUser2Sum = math.sqrt(bottomHalfUser2Sum)
@@ -163,7 +177,17 @@ def precomputeSimularities():
             c.execute('INSERT INTO similarities VALUES (?,?,?)', (user1ID, user2ID, similarity))
     
     connector.commit()
-    print("Similaries between every user calculated")
+
+def getUserNeighbourHood(userID: int):
+    c.execute('''
+              SELECT user2ID, similarity
+              FROM similarities
+              WHERE user1ID = ? 
+              ORDER BY similarity DESC 
+              LIMIT 30
+              ''', (userID,))
+    
+    return c.fetchall()
 
 # ----------------------- CODE EXECUTION -----------------------
 if __name__ == '__main__':
@@ -178,6 +202,9 @@ if __name__ == '__main__':
     precomputeSimularities()
 
     # Go through each unrated item and find neighbourhood of users for that user
+
+    #Testing user1 neighbours
+    print(getUserNeighbourHood(userID=1))
 
     # Using the neighbourhood calculate the score that the user should give (avg I think)
 
