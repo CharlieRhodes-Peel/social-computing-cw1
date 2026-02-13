@@ -16,8 +16,7 @@ c = connector.cursor()
 
 # ----------------------- FUNCTION BIN -----------------------
 
-# ------ File read / write functions ------
-def listTrainingLines():
+def getCsvLines():
     """
     Returns a array  containing each row and then each entry as a tuple \n
     Format for each row is given as follows:                            \n
@@ -30,7 +29,7 @@ def listTrainingLines():
     listLines = readHandler.readlines()
     readHandler.close()
 
-    #Cleans them up and adds them to a 2D array
+    #Cleans them up and adds the tuples to a list
     print("Cleaing up the csv file and reading in correct formats...")
     output = []
     for line in listLines:
@@ -38,6 +37,37 @@ def listTrainingLines():
         splitLine = tempLine.split(",")
         
         lineTuple = (int(splitLine[0]), int(splitLine[1]), float(splitLine[2]), int(splitLine[3]))
+        output.append(lineTuple)
+
+    return output
+
+def getCsvLines(fileName: str):
+    """
+    Returns a array containing each row and then each entry as a tuple \n
+    Format for each row is given as follows:                            \n
+    FOR TRAINING INPUT: user_id (int), item_id (int), user_rating (float), timestamp (int) \n
+    FOR TESTING INPUT:  user_id (int), item_id (int), timestamp (int)
+    """
+
+    #Get all the lines from the csv file
+    print(f"Reading {fileName}...")
+    readHandler = codecs.open(fileName, 'r', 'utf-8', errors = 'replace')
+    listLines = readHandler.readlines()
+    readHandler.close()
+
+    #Cleans them up and adds the tuples to a list
+    print("Cleaing up the csv file and reading in correct formats...")
+    output = []
+    for line in listLines:
+        tempLine = line.replace("\n", "")
+        splitLine = tempLine.split(",")
+        
+        # This is a really silly solution but I actually couldn't think of another way to merge this function to do both files otherwise
+        if len(splitLine) == 4:
+            lineTuple = (int(splitLine[0]), int(splitLine[1]), float(splitLine[2]), int(splitLine[3]))
+        else:
+            lineTuple = (int(splitLine[0]), int(splitLine[1]), int(splitLine[2]))
+        
         output.append(lineTuple)
 
     return output
@@ -75,19 +105,30 @@ def createSQLtables(listLines):
 
     connector.commit() # Git moment!
 
-def getUserRatings(user_id: int):
+def getUserRatings(userID: int):
     """   
     :param user_id: the user id for the ratings you want to get
 
     Returns: All ratings from input user as a dictionary {itemID: rating, ...}
     """
-    c.execute('SELECT itemID, Rating FROM ratings WHERE userID = ?', (user_id,))
+    c.execute('SELECT itemID, Rating FROM ratings WHERE userID = ?', (userID,))
 
     itemsDict = {}
     for row in c.fetchall():
         itemsDict[row[0]] = row[1]
     
     return itemsDict
+
+def getUserRatingMean(userID: int):
+    userRatings = getUserRatings(userID)
+
+    mean = 0
+    for item in userRatings:
+        mean += userRatings[item]
+
+    return (mean / len(userRatings.keys()))
+
+
 
 def calculateCosineSim(ratings1: dict, ratings2: dict):
     """
@@ -178,22 +219,74 @@ def precomputeSimularities():
     
     connector.commit()
 
-def getUserNeighbourHood(userID: int):
+def getUserNeighbourHood(userID: int, itemID: int):
     c.execute('''
-              SELECT user2ID, similarity
-              FROM similarities
-              WHERE user1ID = ? 
+              SELECT s.user2ID, r.rating, s.similarity
+              FROM similarities s
+              JOIN ratings r ON s.user2ID = r.userID
+              WHERE s.user1ID = ?
+                AND r.itemID = ?
+                AND s.similarity > 0
               ORDER BY similarity DESC 
               LIMIT 30
-              ''', (userID,))
+              ''', (userID, itemID))
     
     return c.fetchall()
+
+def predictScores(testLines):
+    # Create the predicitions table
+    print("Creating predictions table...")
+    c.execute('DROP TABLE IF EXISTS predictions') #Clearing old data each time it runs
+    c.execute('''
+            CREATE TABLE predictions(
+            userID INT,
+            itemID INT,
+            prediction FLOAT,
+            timestamp INT
+            )
+        ''')
+
+    #Predicting time!
+    print("Calculating predictions...")
+    for testEntry in testLines:
+        userID = testEntry[0]
+        itemID = testEntry[1]
+        timestamp = testEntry[2]
+
+        #Get mean of the user
+        userMean = getUserRatingMean(userID)
+
+        #Get neighbourhood
+        neighbourHood = getUserNeighbourHood(userID, itemID)
+
+        #Calculating prediction score
+        topHalfSum = 0
+        bottomHalfSum = 0
+        for neighbour in neighbourHood:
+            neighbourID = neighbour[0]
+            similarity = neighbour[1]
+
+            neighbourRatings = getUserRatings(neighbourID)
+
+            topHalfSum += similarity * (neighbourRatings[itemID] - getUserRatingMean(neighbourID))
+            bottomHalfSum += similarity
+
+        #Stops dividing by 0
+        if bottomHalfSum == 0:
+            prediction = userMean
+        else:
+            prediction = userMean + (topHalfSum / bottomHalfSum)
+
+
+        c.execute('INSERT INTO predictions VALUES (?,?,?,?)', (userID, itemID, prediction, timestamp))
+
+    connector.commit()
 
 # ----------------------- CODE EXECUTION -----------------------
 if __name__ == '__main__':
     
-    # Get the data
-    listLines = listTrainingLines()
+    # Get the training data
+    listLines = getCsvLines('train_100k_withratings.csv')
 
     # Create sql tables and indexes with that data
     createSQLtables(listLines)
@@ -201,16 +294,12 @@ if __name__ == '__main__':
     # Calculate the cosine simularity of each user with each user
     precomputeSimularities()
 
-    # Go through each unrated item and find neighbourhood of users for that user
+    # Get the test data
+    listLines = getCsvLines('test_100k_withoutratings.csv')
 
-    #Testing user1 neighbours
-    print(getUserNeighbourHood(userID=1))
+    #Predict the scores and write them
+    predictScores(listLines)
 
-    # Using the neighbourhood calculate the score that the user should give (avg I think)
-
-    # Done! Write all results to a file (if not doing already)
-
-    #Close connection
     c.close()
     connector.close()
 

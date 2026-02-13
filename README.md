@@ -18,5 +18,9 @@
 - [x] Lookup table for items and users that have rated them (i think i need this?)
 - [x] Precomputing cosine simularities between all users and storing results somewhere
 - [x] For items without ratings by a user, find a neighbour of similar users to this user
-- [ ] Then calculate an average score
-- [ ] Do this for all and write to a file! :) DONE!!!!
+- [x] Then calculate an average score
+- [x] Do this for all and write to a file! :) DONE!!!!
+
+WELL DONE!!
+
+# TS is complete! Just need to pretty it up and also maybe round the predictions then pretty it up for submission !! But it works so I am going to bed now :)
